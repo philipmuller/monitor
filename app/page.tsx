@@ -2,37 +2,18 @@ import React, { useState, FormEvent, ChangeEvent } from 'react';
 import { kv } from '@vercel/kv';
 import { NextResponse } from 'next/server';
 import { type } from 'os';
-import { revalidateTag, revalidatePath } from 'next/cache'
+import { revalidateTag, revalidatePath } from 'next/cache';
+import { ReportData } from './model/report-data';
+import ReportCard from './components/report-card';
+import { sql } from "@vercel/postgres";
+import supabase from './utils/supabase';
 
-type Card = {
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  company: string;
-  avatar: string;
-}
+export const revalidate = 30;
 
 export default async function Home() {
 
-  async function fetchReports(): Promise<Card[]> {
-    const response = await kv.lrange('reportsList', 0, -1);
-    let cards: Card[] = [];
-    for (const report of response) {
-      console.log(report);
-      cards.push(JSON.parse(report));
-    }
-
-    return cards;
-  }
-
-  async function fetchMessages(): Promise<string[]> {
-    const messages = await kv.lrange('messages', 0, 100);
-    const test = await kv.hgetall('user:me');
-    console.log("Messages: " + messages);
-    console.log("User: " + JSON.stringify(test));
-    return messages;
-  }
+  const { data } = await supabase.from("reports").select("*, machine(name, type)");
+  console.log(JSON.stringify(data));
 
   async function handleSubmit(data: FormData) {
     "use server";
@@ -41,21 +22,20 @@ export default async function Home() {
     revalidatePath('/');
   };
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    //setMessage(e.target.value);
-  };
-
   return (
-    <main className="flex min-h-screen bg-white text-slate-800 flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full flex flex-col items-center justify-end font-mono text-sm lg:flex">
-        <div className="chatbox">
-          {await fetchMessages().then((messages) => {
-            return messages.map((message, index) => (
-              <p key={index}>{message}</p>
-            ))
-          })
-          }
-        </div>
+    <main className="flex min-h-screen bg-white text-slate-800 flex-col items-center justify-between p-10">
+      <div className="flex w-full flex-col items-center gap-5 justify-end text-sm lg:flex">
+        {
+          data?.map((report) => (
+            <ReportCard 
+            key={report.id}
+            id={report.id} 
+            date={new Date(report.created_at)} 
+            machineName={report.machine.name}
+            status={report.status}
+            remarks={report.remarks}/>
+          ))
+        }
       </div>
       <form 
       action={handleSubmit} 
