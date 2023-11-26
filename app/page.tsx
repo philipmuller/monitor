@@ -7,23 +7,40 @@ import { ReportData } from './model/report-data';
 import ReportCard from './components/report-card';
 import { sql } from "@vercel/postgres";
 import supabase from './utils/supabase';
+import { OpenAIEngine } from './engine/ai-engine';
+import ChatModal from './components/chat-modal';
+import { createClientComponentClient, createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export const revalidate = 30;
 
 export default async function Home() {
 
-  const { data } = await supabase.from("reports").select("*, machine(name, type)");
+  const cookieStore = cookies();
+  const sup = createServerComponentClient({ cookies: () => cookieStore });
+  const { data } = await sup.from("reports").select("*, machine(name, type)");
   console.log(JSON.stringify(data));
+
+  async function requestAnswer(text: string): Promise<string> {
+    "use server";
+    const ai = new OpenAIEngine();
+    const response = await ai.generateFrom(text);
+    revalidatePath('/');
+
+    return response;
+  }
 
   async function handleSubmit(data: FormData) {
     "use server";
-    console.log(data.get('message'));
-    await kv.lpush('messages', data.get('message'));
+    const text: string = data.get('message') as string || "";
+    console.log(text);
+    const ai = new OpenAIEngine();
+    await ai.generateFrom(text);
     revalidatePath('/');
   };
 
   return (
-    <main className="flex min-h-screen bg-white text-slate-800 flex-col items-center justify-between p-10">
+    <main className="flex min-h-screen bg-white text-slate-800 flex-col items-center justify-between p-10 pt-20">
       <div className="flex w-full flex-col items-center gap-5 justify-end text-sm lg:flex">
         {
           data?.map((report) => (
@@ -37,15 +54,7 @@ export default async function Home() {
           ))
         }
       </div>
-      <form 
-      action={handleSubmit} 
-      className="p-10 fixed flex flex-row gap-6 bottom-0 left-0 right-0 p-4">
-        <input
-          name="message"
-          className='w-full border border-gray-300 p-2 rounded-full bg-transparent focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-transparent'
-        />
-        <button type="submit">Send</button>
-      </form>
+      <ChatModal convo={[]} request={requestAnswer}/>
     </main>
   );
 }
