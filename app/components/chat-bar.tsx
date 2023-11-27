@@ -22,7 +22,7 @@ export default function ChatBar({ onSubmit, onClear }: { onSubmit: (message: str
     };
 
     return (
-        <div className="backdrop-blur-md bg-white/30 w-screen sticky bottom-0 pb-16">
+        <div className="backdrop-blur-md bg-white/30 w-screen sticky bottom-0 pb-20">
             <form 
                 onSubmit={handleSubmit}
                 className="p-10 flex flex-col gap-5 p-4"
