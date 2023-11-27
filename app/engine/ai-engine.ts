@@ -20,6 +20,8 @@ export class OpenAIEngine {
         const lg = this.logger.subprocess("generateFrom");
         lg.logCall([text, options]);
 
+        //Idk if this helps
+
         const response = await this.assistantRequest(text, options);
 
         lg.logReturn(response);
