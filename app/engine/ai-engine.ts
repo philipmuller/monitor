@@ -5,6 +5,8 @@ import { Thread } from "openai/resources/beta/threads/threads.mjs";
 import { MessageContentText, ThreadMessage } from "openai/resources/beta/threads/messages/messages.mjs";
 import { Run } from "openai/resources/beta/threads/runs/runs.mjs";
 import { Logger } from "./logging-engine";
+import { Message } from "../model/message";
+import { ToolCallsStepDetails } from "openai/resources/beta/threads/runs/steps.mjs";
 
 export class OpenAIEngine {
     logger: Logger = new Logger("OpenAIEngine");
@@ -14,11 +16,11 @@ export class OpenAIEngine {
     transcriptionModel = "whisper-1";
     checkIntervalMs = 1000;
 
-    async generateFrom(text: string, file?: ReadStream): Promise<string> {
+    async generateFrom(text: string, options?: {threadID?: string, runID?: string, file?: ReadStream }): Promise<{ message?: Message, threadID: string, runID: string}> {
         const lg = this.logger.subprocess("generateFrom");
-        lg.logCall([text, file]);
+        lg.logCall([text, options]);
 
-        const response = await this.assistantRequest(text, file);
+        const response = await this.assistantRequest(text, options);
 
         lg.logReturn(response);
         return response;
@@ -44,16 +46,110 @@ export class OpenAIEngine {
         return transcription;
     }
 
-    private async assistantRequest(text: string, file?: ReadStream): Promise<string> {
-        const lg = this.logger.subprocess("assistantRequest");
-        lg.logCall([text, file]);
+    async getLastMessage(threadId: string): Promise<Message | undefined> {
+        const lg = this.logger.subprocess("getLastMessage");
+        lg.logCall([threadId]);
 
-        const thread = await this.openai.beta.threads.create();
-        lg.log("Thread created: " + thread.id);
+        const messages = await this.openai.beta.threads.messages.list(
+            threadId
+        );
+
+        if (messages.data.length == 0) {
+            return undefined;
+        }
+
+        const lastMessage = messages.data[0];
+        lg.log("Last message: " + JSON.stringify(lastMessage));
+
+        var text = "";
+
+        //We go through the array because the last message can be composed of multiple elements (text, images, etc.)
+        for (let contentElement of lastMessage.content) { 
+            lg.log(JSON.stringify(contentElement));
+            if (contentElement.type == "text") {
+                const textElement = contentElement as MessageContentText;
+                text += textElement.text.value;
+            }
+        }
+
+        lg.logReturn(text);
+        return {by: lastMessage.role, type: "text", content: text};
+    }
+
+    async getMessages(threadId: string): Promise<Message[]> {
+        const lg = this.logger.subprocess("getMessages");
+        lg.logCall([threadId]);
+
+        const messages = await this.openai.beta.threads.messages.list(
+            threadId
+        );
+
+        let sMessages: Message[] = [];
+
+        for (let message of messages.data) {
+            let messageText = "";
+            console.log("Currently processing message: " + JSON.stringify(message));
+            for (let messageContent of message.content) {
+                if (messageContent.type == "text") {
+                    const textElement = messageContent as MessageContentText;
+                    messageText += textElement.text.value;
+                }
+            }
+
+            if (message.role == "assistant") {
+                if (message.run_id != null && message.run_id != undefined) {
+                    const runStepsObj = await this.openai.beta.threads.runs.steps.list(
+                        threadId,
+                        message.run_id!
+                    );
+                    console.log("Retreived run steps object: " + JSON.stringify(runStepsObj));
+
+                    const runSteps = runStepsObj.data.reverse();
+                    console.log("Run steps: " + JSON.stringify(runSteps));
+
+                    for (let runStep of runSteps) {
+                        console.log("Currently examining run step: " + JSON.stringify(runStep));
+                        if (runStep.type == "tool_calls") {
+                            console.log("Step is a tool call!");
+                            const toolStepDetails = runStep.step_details as ToolCallsStepDetails;
+                            for (let toolCall of toolStepDetails.tool_calls) {
+                                console.log("Currently examining tool call: " + JSON.stringify(toolCall));
+                                if (toolCall.type == "function") {
+                                    console.log("Tool call is a function! Adding to messages");
+                                    sMessages.push({by: "tool", type: "widget", content: toolCall.function.name, toolDetails: {runID: message.run_id, toolCallID: "unavailable", arguments: toolCall.function.arguments, output: toolCall.function.output ?? undefined}});
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            sMessages.push({by: message.role, type: "text", content: messageText});
+        }
+
+        const reversed = sMessages.reverse();
+        lg.logReturn(reversed);
+        return reversed;
+    }
+
+    private async assistantRequest(text: string, options?: {threadID?: string,  file?: ReadStream }): Promise<{ message?: Message, threadID: string, runID: string}> {
+        const lg = this.logger.subprocess("assistantRequest");
+        lg.logCall([text, options]);
+
+        let thread;
+
+        if (options?.threadID != null && options?.threadID != undefined) {
+            thread = await this.openai.beta.threads.retrieve(options.threadID);
+            lg.log("Thread retreived: " + thread.id);
+        } else {
+            thread = await this.openai.beta.threads.create();
+            lg.log("Thread created: " + thread.id);
+        }
 
         let fileId: string | undefined = undefined;
-        if (file != null && file != undefined) {
-            fileId = await this.uploadFile(file);
+        if (options?.file != null && options?.file != undefined) {
+            fileId = await this.uploadFile(options.file!);
         }
 
         await this.addMessage(text, thread.id);
@@ -63,8 +159,8 @@ export class OpenAIEngine {
         lg.log("Started run " + thread.id);
         var response = await this.manageRun(run.id, thread.id);
 
-        lg.logReturn(response ?? "");
-        return response ?? "";
+        lg.logReturn(response);
+        return {message: response, threadID: thread.id, runID: run.id};
     }
 
     private async uploadFile(file: ReadStream): Promise<string> {
@@ -80,7 +176,7 @@ export class OpenAIEngine {
         return oaFile.id;
     }
 
-    private async manageRun(runId: string, threadId: string): Promise<string | null> {
+    private async manageRun(runId: string, threadId: string): Promise<Message | undefined> {
         const lg = this.logger.subprocess("manageRun");
         lg.logCall([runId, threadId]);
 
@@ -95,13 +191,16 @@ export class OpenAIEngine {
 
         switch (run.status) {
             case "completed":
-                const returnValue = await this.statusCompleted(threadId);
-                lg.logReturn(returnValue);
-                return returnValue;
+                const lastMessage = await this.getLastMessage(threadId);
+                lg.logReturn(lastMessage);
+                return lastMessage;
                 break;
             case "failed":
                 break;
             case "requires_action":
+                const actionMessage = await this.statusRequiresAction(run);
+                lg.logReturn(actionMessage);
+                return actionMessage;
                 break;
             case "cancelling":
                 break;
@@ -113,7 +212,53 @@ export class OpenAIEngine {
                 break;
         }
 
-        return null;
+        return undefined;
+    }
+
+    private async statusRequiresAction(run: Run): Promise<Message | undefined> {
+        const lg = this.logger.subprocess("statusRequiresAction");
+        lg.logCall([run]);
+
+        const toolCalls = run.required_action?.submit_tool_outputs.tool_calls
+
+        if (toolCalls == null || toolCalls == undefined || toolCalls.length == 0) {
+            return undefined;
+        }
+
+        const toolCall = toolCalls[0];
+
+        const functionCallMessage = {
+            by: "tool", 
+            type: "widget", 
+            content: toolCall.function.name,
+            toolDetails: {
+                runID: run.id,
+                toolCallID: toolCall.id,
+                arguments: toolCall.function.arguments,
+            }
+        };
+
+        lg.logReturn(functionCallMessage);
+        return functionCallMessage;
+
+    }
+
+    async toolResponse(data: string, threadID: string, runID: string, toolCallID: string): Promise<{ message?: Message, threadID: string, runID: string}> {
+        const run = await this.openai.beta.threads.runs.submitToolOutputs(
+            threadID,
+            runID,
+            {
+              tool_outputs: [
+                {
+                  tool_call_id: toolCallID,
+                  output: data,
+                },
+              ],
+            }
+        );
+
+        const message = await this.manageRun(run.id, threadID);
+        return {message: message, threadID: threadID, runID: run.id};
     }
 
     private async statusCompleted(threadId: string): Promise<string> {

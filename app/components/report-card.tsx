@@ -1,6 +1,6 @@
 import { ReportData } from '../model/report-data';
 
-export default function ReportCard(data: ReportData) {
+export default function ReportCard({data}: {data: ReportData}) {
 
     const stateBadge = () => {
         if (data.status === 'good') {
