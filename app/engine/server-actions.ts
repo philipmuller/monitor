@@ -70,7 +70,7 @@ export async function getMachineTypes(): Promise<string[]> {
     return machineTypes?.map((element) => element.type) ?? [];
 }
 
-export async function getReports(options?: {from?: string, to?: string, type?: string, name?: string, upTo?: number}): Promise<ReportData[]> {
+export async function getReports(options?: {from?: string, to?: string, type?: string, name?: string, status?: string, upTo?: number}): Promise<ReportData[]> {
     console.log(`Get reports called! options: ${JSON.stringify(options)}`);
     const cookieStore = cookies();
     const supabase = createServerComponentClient({ cookies: () => cookieStore });
@@ -90,6 +90,7 @@ export async function getReports(options?: {from?: string, to?: string, type?: s
         if (options.to)  { query = query.lte('created_at', options.to!) }
         if (options.type) { query = query.eq('machine.type', options.type!) }
         if (options.name) { query = query.eq('machine.name', options.name!) }
+        if (options.status) { query = query.eq('status', options.status!) }
         if (options.upTo) { query = query.limit(options.upTo!) }
         query = query.order('created_at', { ascending: false });
 
