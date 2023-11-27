@@ -110,7 +110,7 @@ export default function Chat({ initialMessages }: { initialMessages: Message[] }
                     ))
                 }
                 {isPending ? <p className="text-gray-400">Loading...</p> : null}
-                <div className="h-44 bg-transparent"/>
+                <div className="h-48 bg-transparent"/>
                 <div ref={messagesEndRef} />
             </div>
 
