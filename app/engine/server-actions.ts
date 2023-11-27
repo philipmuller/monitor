@@ -108,6 +108,7 @@ export async function getReports(options?: {from?: string, to?: string, type?: s
             id: dbReport.id,
             date: dbReport.created_at,
             machineName: dbReport.machine.name,
+            machineType: dbReport.machine.type,
             status: dbReport.status,
             remarks: dbReport.remarks
         }

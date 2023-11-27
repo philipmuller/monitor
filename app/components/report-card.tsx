@@ -1,4 +1,5 @@
 import { ReportData } from '../model/report-data';
+import { FDM, CNC, Soldering, Ventilation } from './icons';
 
 export default function ReportCard({data, interactiveData}: {data: ReportData, interactiveData?: {confirmed?: boolean, submitAnswer: (answer: boolean) => void} }) {
 
@@ -15,6 +16,21 @@ export default function ReportCard({data, interactiveData}: {data: ReportData, i
             return (
                 <div className="bg-yellow-200 rounded-full text-yellow-800 text-[9px] px-2 py-0.5 font-mono uppercase tracking-widest">Warning</div>
             )
+        }
+    }
+
+    const icon = () => {
+        switch (data.machineType) {
+            case 'FDM':
+                return <FDM/>;
+            case 'CNC':
+                return <CNC/>
+            case 'Soldering':
+                return <Soldering/>;
+            case 'Ventilation':
+                return <Ventilation/>;
+            default:
+                return <div className='w-10 h-10 bg-stone-100'/>;
         }
     }
 
@@ -45,11 +61,11 @@ export default function ReportCard({data, interactiveData}: {data: ReportData, i
                 <h1 className='text-xl'>{data.machineName}</h1>
                 <h2 className='text-lg'>{(new Date(data.date)).toDateString()}</h2>
             </div>
-            <div className="w-10 h-10 bg-gray-200"/>
+            {icon()}
         </div>
         <div className="flex flex-row gap-2 w-full items-center">
             <div className="bg-gray-200 h-0.5 w-full"/>
-            {stateBadge()}
+                {stateBadge()}
             <div className="bg-gray-200 h-0.5 w-full"/>
         </div>
         <p>{data.remarks}</p>

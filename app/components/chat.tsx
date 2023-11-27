@@ -109,7 +109,7 @@ export default function Chat({ initialMessages }: { initialMessages: Message[] }
                         <ChatBubble key={index} message={message} onToolSubmit={onToolSubmit} />
                     ))
                 }
-                {isPending ? <p className="text-gray-400">Loading...</p> : null}
+                {isPending ? <p className="text-gray-400 animate-pulse">Loading...</p> : null}
                 <div className="h-52 bg-transparent"/>
                 <div ref={messagesEndRef} />
             </div>

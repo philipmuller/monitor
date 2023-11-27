@@ -167,7 +167,8 @@ export function ChatBubble({message, onToolSubmit}: {message: Message, onToolSub
         const report = {
             id: "adasddmpoaskdpokad", //this won't be used in db call
             date: new Date(), //this won't be used either
-            machineName: JSON.parse(message.toolDetails!.arguments).name, 
+            machineName: JSON.parse(message.toolDetails!.arguments).name,
+            machineType: JSON.parse(message.toolDetails!.arguments).type, 
             status: JSON.parse(message.toolDetails!.arguments).state,
             remarks: JSON.parse(message.toolDetails!.arguments).remarks
         }
@@ -181,7 +182,8 @@ export function ChatBubble({message, onToolSubmit}: {message: Message, onToolSub
         data={{
             id: "adasddmpoaskdpokad", 
             date: new Date(), 
-            machineName: JSON.parse(message.toolDetails!.arguments).name, 
+            machineName: JSON.parse(message.toolDetails!.arguments).name,
+            machineType: JSON.parse(message.toolDetails!.arguments).type,
             status: JSON.parse(message.toolDetails!.arguments).state,
             remarks: JSON.parse(message.toolDetails!.arguments).remarks}}
         interactiveData={{
