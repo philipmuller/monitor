@@ -10,7 +10,7 @@ import { ToolCallsStepDetails } from "openai/resources/beta/threads/runs/steps.m
 
 export class OpenAIEngine {
     logger: Logger = new Logger("OpenAIEngine");
-    openai = new OpenAI({ apiKey: process.env.OPENAI_KEY!, dangerouslyAllowBrowser: false});
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY!, dangerouslyAllowBrowser: false});
     generalAssistantId: string = "asst_50XPjQkI94nTIPQo539HO54T";
     model = "gpt-3.5-turbo";
     transcriptionModel = "whisper-1";
