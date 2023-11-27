@@ -32,7 +32,7 @@ export default async function Home() {
   }
 
   return (
-    <main className="flex h-full text-slate-800 flex-col items-center justify-between">
+    <main className="flex text-slate-800 flex-col items-center justify-between">
       <Chat initialMessages={messages} />
     </main>
   );
