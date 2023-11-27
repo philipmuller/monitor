@@ -16,7 +16,7 @@ export class OpenAIEngine {
     transcriptionModel = "whisper-1";
     checkIntervalMs = 1000;
 
-    async generateFrom(text: string, options?: {threadID?: string, runID?: string, file?: ReadStream }): Promise<{ message?: Message, threadID: string, runID: string}> {
+    async generateFrom(text: string, options?: {threadID?: string, runID?: string, file?: ReadStream }): Promise<{ messages?: Message[], threadID: string, runID: string}> {
         const lg = this.logger.subprocess("generateFrom");
         lg.logCall([text, options]);
 
@@ -24,6 +24,15 @@ export class OpenAIEngine {
 
         lg.logReturn(response);
         return response;
+    }
+
+    async deleteThread(threadId: string) {
+        const lg = this.logger.subprocess("deleteThread");
+        lg.logCall([threadId]);
+
+        const response = await this.openai.beta.threads.del(threadId);
+
+        lg.log(response);
     }
 
     async transcribe(file: ReadStream): Promise<string> {
@@ -96,6 +105,8 @@ export class OpenAIEngine {
                 }
             }
 
+            sMessages.push({by: message.role, type: "text", content: messageText});
+
             if (message.role == "assistant") {
                 if (message.run_id != null && message.run_id != undefined) {
                     const runStepsObj = await this.openai.beta.threads.runs.steps.list(
@@ -107,6 +118,7 @@ export class OpenAIEngine {
                     const runSteps = runStepsObj.data.reverse();
                     console.log("Run steps: " + JSON.stringify(runSteps));
 
+                    let toolMessages: Message[] = [];
                     for (let runStep of runSteps) {
                         console.log("Currently examining run step: " + JSON.stringify(runStep));
                         if (runStep.type == "tool_calls") {
@@ -116,16 +128,17 @@ export class OpenAIEngine {
                                 console.log("Currently examining tool call: " + JSON.stringify(toolCall));
                                 if (toolCall.type == "function") {
                                     console.log("Tool call is a function! Adding to messages");
-                                    sMessages.push({by: "tool", type: "widget", content: toolCall.function.name, toolDetails: {runID: message.run_id, toolCallID: "unavailable", arguments: toolCall.function.arguments, output: toolCall.function.output ?? undefined}});
+                                    toolMessages.push({by: "tool", type: "widget", content: toolCall.function.name, toolDetails: {runID: message.run_id, toolCallID: "unavailable", arguments: toolCall.function.arguments, output: toolCall.function.output ?? undefined}});
                                 }
                             }
                         }
                     }
 
+                    toolMessages.reverse();
+                    sMessages = sMessages.concat(toolMessages);
+
                 }
             }
-
-            sMessages.push({by: message.role, type: "text", content: messageText});
         }
 
         const reversed = sMessages.reverse();
@@ -133,7 +146,7 @@ export class OpenAIEngine {
         return reversed;
     }
 
-    private async assistantRequest(text: string, options?: {threadID?: string,  file?: ReadStream }): Promise<{ message?: Message, threadID: string, runID: string}> {
+    private async assistantRequest(text: string, options?: {threadID?: string,  file?: ReadStream }): Promise<{ messages?: Message[], threadID: string, runID: string}> {
         const lg = this.logger.subprocess("assistantRequest");
         lg.logCall([text, options]);
 
@@ -160,7 +173,7 @@ export class OpenAIEngine {
         var response = await this.manageRun(run.id, thread.id);
 
         lg.logReturn(response);
-        return {message: response, threadID: thread.id, runID: run.id};
+        return {messages: response, threadID: thread.id, runID: run.id};
     }
 
     private async uploadFile(file: ReadStream): Promise<string> {
@@ -176,7 +189,7 @@ export class OpenAIEngine {
         return oaFile.id;
     }
 
-    private async manageRun(runId: string, threadId: string): Promise<Message | undefined> {
+    private async manageRun(runId: string, threadId: string): Promise<Message[] | undefined> {
         const lg = this.logger.subprocess("manageRun");
         lg.logCall([runId, threadId]);
 
@@ -193,7 +206,7 @@ export class OpenAIEngine {
             case "completed":
                 const lastMessage = await this.getLastMessage(threadId);
                 lg.logReturn(lastMessage);
-                return lastMessage;
+                return [lastMessage ?? {by: "assistant", type: "text", content: "No response"}];
                 break;
             case "failed":
                 break;
@@ -215,7 +228,9 @@ export class OpenAIEngine {
         return undefined;
     }
 
-    private async statusRequiresAction(run: Run): Promise<Message | undefined> {
+    
+
+    private async statusRequiresAction(run: Run): Promise<Message[] | undefined> {
         const lg = this.logger.subprocess("statusRequiresAction");
         lg.logCall([run]);
 
@@ -224,41 +239,42 @@ export class OpenAIEngine {
         if (toolCalls == null || toolCalls == undefined || toolCalls.length == 0) {
             return undefined;
         }
+        const functionCallMessages = toolCalls.map((toolCall) => {
+            return {
+                by: "tool", 
+                type: "widget", 
+                content: toolCall.function.name,
+                toolDetails: {
+                    runID: run.id,
+                    toolCallID: toolCall.id,
+                    arguments: toolCall.function.arguments,
+                }
+            };
+        });
 
-        const toolCall = toolCalls[0];
-
-        const functionCallMessage = {
-            by: "tool", 
-            type: "widget", 
-            content: toolCall.function.name,
-            toolDetails: {
-                runID: run.id,
-                toolCallID: toolCall.id,
-                arguments: toolCall.function.arguments,
-            }
-        };
-
-        lg.logReturn(functionCallMessage);
-        return functionCallMessage;
+        lg.logReturn(functionCallMessages);
+        return functionCallMessages;
 
     }
 
-    async toolResponse(data: string, threadID: string, runID: string, toolCallID: string): Promise<{ message?: Message, threadID: string, runID: string}> {
+    async toolResponse(data: {reply: string, toolData?: {runID: string, toolCallID: string}}[], threadID: string): Promise<{ messages?: Message[], threadID: string, runID: string}> {
         const run = await this.openai.beta.threads.runs.submitToolOutputs(
             threadID,
-            runID,
+            data[0].toolData!.runID,
             {
               tool_outputs: [
-                {
-                  tool_call_id: toolCallID,
-                  output: data,
-                },
+                ...data.map((toolData) => {
+                    return {
+                        tool_call_id: toolData.toolData!.toolCallID,
+                        output: toolData.reply,
+                    }
+                }) 
               ],
             }
         );
 
-        const message = await this.manageRun(run.id, threadID);
-        return {message: message, threadID: threadID, runID: run.id};
+        const messages = await this.manageRun(run.id, threadID);
+        return {messages: messages, threadID: threadID, runID: run.id};
     }
 
     private async statusCompleted(threadId: string): Promise<string> {
