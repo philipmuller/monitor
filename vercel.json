@@ -1,0 +1,10 @@
+{
+    "functions": {
+        "app/engine/server-actions.ts": {
+            "maxDuration": 120
+        },
+        "app/page.tsx": {
+            "maxDuration": 120
+        }
+    }
+}
