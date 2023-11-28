@@ -1,7 +1,7 @@
 "use client";
 
 import { Message } from "../model/message";
-import { useState, useRef, useEffect, use } from "react";
+import { useState, useRef, useEffect, use, ReactNode } from "react";
 import ChatBar from "./chat-bar";
 import { ChatBubble } from "./chat-elements";
 import { send, clearConvo } from "../engine/server-actions";
@@ -99,15 +99,24 @@ export default function Chat({ initialMessages }: { initialMessages: Message[] }
         //});
     }, []);
 
-
+    function welcomeMessage(): ReactNode {
+        return (
+            <div className="flex flex-col gap-1 p-12">
+                <h1 className="text-lg text-gray-400">Hello!</h1>
+                <p className="text-gray-400">This assistant helps inspectors and engineers with factory machine inspections.</p>
+                <p className="text-gray-400">You can enquire about the current machines in the factory, look up reports and create new reports based on your obserations.</p>
+            </div>
+        )
+    };
 
     return (
         <>
             <div className="flex w-full flex-col items-center gap-5 justify-start text-sm lg:flex pl-8 pr-10 pt-20">
-                {
-                    messages?.map((message, index) => (
+                { (messages.length > 0) 
+                ? messages?.map((message, index) => (
                         <ChatBubble key={index} message={message} onToolSubmit={onToolSubmit} />
                     ))
+                : welcomeMessage()
                 }
                 {isPending ? <p className="text-gray-400 animate-pulse">Loading...</p> : null}
                 <div className="h-52 bg-transparent"/>
