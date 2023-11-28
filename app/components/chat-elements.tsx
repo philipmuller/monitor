@@ -164,16 +164,18 @@ export function ChatBubble({message, onToolSubmit}: {message: Message, onToolSub
         setConfirmed((prev) => answer);
         onToolSubmit(answer ? "confirmed" : "rejected", message.toolDetails!.runID, message.toolDetails!.toolCallID);
 
-        const report = {
-            id: "adasddmpoaskdpokad", //this won't be used in db call
-            date: new Date(), //this won't be used either
-            machineName: JSON.parse(message.toolDetails!.arguments).name,
-            machineType: JSON.parse(message.toolDetails!.arguments).type, 
-            status: JSON.parse(message.toolDetails!.arguments).state,
-            remarks: JSON.parse(message.toolDetails!.arguments).remarks
+        if (answer == true) {
+            const report = {
+                id: "", //this won't be used in db call
+                date: "", //this won't be used either
+                machineName: JSON.parse(message.toolDetails!.arguments).name,
+                machineType: JSON.parse(message.toolDetails!.arguments).type, 
+                status: JSON.parse(message.toolDetails!.arguments).state,
+                remarks: JSON.parse(message.toolDetails!.arguments).remarks
+            }
+    
+            await createReport(report);
         }
-
-        await createReport(report);
     }, [onToolSubmit, setConfirmed, message]);
 
     return (
@@ -181,7 +183,7 @@ export function ChatBubble({message, onToolSubmit}: {message: Message, onToolSub
         <ReportCard 
         data={{
             id: "adasddmpoaskdpokad", 
-            date: new Date(), 
+            date: (new Date()).toISOString(), 
             machineName: JSON.parse(message.toolDetails!.arguments).name,
             machineType: JSON.parse(message.toolDetails!.arguments).type,
             status: JSON.parse(message.toolDetails!.arguments).state,

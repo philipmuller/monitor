@@ -114,7 +114,7 @@ export default function Chat({ initialMessages }: { initialMessages: Message[] }
                 <div ref={messagesEndRef} />
             </div>
 
-            <ChatBar onSubmit={onSubmit} onClear={onClearConvo}/>
+            <ChatBar onSubmit={onSubmit} onClear={onClearConvo} disabled={(toolCallCount.current > 0 || isPending) ? true : false}/>
         
         </>
     );

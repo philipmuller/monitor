@@ -6,6 +6,8 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Message } from '../model/message';
 import { ReportData } from '../model/report-data';
+import { todo } from 'node:test';
+import moment from 'moment';
 
 export async function send(data: {reply: string, toolData?: {runID: string, toolCallID: string}}[]): Promise<{ messages?: Message[], threadID: string, runID: string}  | undefined> {
     if (data.length == 0) return undefined;
@@ -70,6 +72,14 @@ export async function getMachineTypes(): Promise<string[]> {
     return machineTypes?.map((element) => element.type) ?? [];
 }
 
+function convertToOriginalDate(date: Date) {
+    console.log(`Converting date: ${date}`);
+    var userTimezoneOffset = date.getTimezoneOffset() * 60000;
+    const originalDate = new Date(date.getTime() - userTimezoneOffset);
+    console.log(`Converted date: ${originalDate}`);
+    return originalDate;
+}
+
 export async function getReports(options?: {from?: string, to?: string, type?: string, name?: string, status?: string, upTo?: number}): Promise<ReportData[]> {
     console.log(`Get reports called! options: ${JSON.stringify(options)}`);
     const cookieStore = cookies();
@@ -86,13 +96,27 @@ export async function getReports(options?: {from?: string, to?: string, type?: s
     if (options != null && options != undefined) {
         let query = supabase.from("reports").select("id, created_at, machine!inner (name, type), status, remarks");
 
-        if (options.from)  { query = query.gte('created_at', options.from!) }
-        if (options.to)  { query = query.lte('created_at', options.to!) }
+        if (options.from)  {
+            let fromDate = new Date(options.from!);
+            fromDate = convertToOriginalDate(fromDate);
+            const fromDateString = fromDate.toISOString();
+            console.log(`From date string: ${fromDateString}, fromDate object: ${JSON.stringify(fromDate)}`);
+            query = query.gte('created_at', options.from!)
+        }
+        if (options.to)  {
+            let toDate = new Date(options.to!);
+            toDate = convertToOriginalDate(toDate);
+            const toDateString = toDate.toISOString();
+            console.log(`To date string: ${toDateString}, toDate object: ${JSON.stringify(toDate)}`);
+            query = query.lte('created_at', options.to!)
+        }
         if (options.type) { query = query.eq('machine.type', options.type!) }
         if (options.name) { query = query.eq('machine.name', options.name!) }
         if (options.status) { query = query.eq('status', options.status!) }
         if (options.upTo) { query = query.limit(options.upTo!) }
         query = query.order('created_at', { ascending: false });
+
+        console.log(`Final Query: ${JSON.stringify(query)}`);
 
         // @ts-ignore This is a huge bug in the typescript definitions for supabase. The compiler thinks an array is being returned for machines, but that is not the case
         var { data: dbReports } = await query;
@@ -101,9 +125,7 @@ export async function getReports(options?: {from?: string, to?: string, type?: s
         var { data: dbReports } = await supabase.from("machines").select("id, created_at, machine(name, type), status, remarks");
     }
 
-    console.log(`DB reports: ${JSON.stringify(dbReports)}`);
-
-    return dbReports?.map((dbReport) => {
+    const returnReports = dbReports?.map((dbReport) => {
         return {
             id: dbReport.id,
             date: dbReport.created_at,
@@ -112,7 +134,12 @@ export async function getReports(options?: {from?: string, to?: string, type?: s
             status: dbReport.status,
             remarks: dbReport.remarks
         }
-    }) ?? [];
+    });
+
+    console.log(`DB reports: ${JSON.stringify(dbReports)}`);
+    console.log(`returnReports: ${JSON.stringify(returnReports)}`);
+
+    return returnReports ?? [];
 }
 
 export async function clearConvo() {

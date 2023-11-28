@@ -1,6 +1,6 @@
 export interface ReportData {
     id: string;
-    date: Date;
+    date: string;
     machineName: string;
     machineType: string;
     status: string;

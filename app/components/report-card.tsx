@@ -1,5 +1,6 @@
 import { ReportData } from '../model/report-data';
 import { FDM, CNC, Soldering, Ventilation } from './icons';
+import moment from 'moment';
 
 export default function ReportCard({data, interactiveData}: {data: ReportData, interactiveData?: {confirmed?: boolean, submitAnswer: (answer: boolean) => void} }) {
 
@@ -54,23 +55,32 @@ export default function ReportCard({data, interactiveData}: {data: ReportData, i
         }
     }
 
-  return (
-    <div className="flex rounded-2xl border w-full text-slate-800 gap-5 flex-col items-center justify-between p-5">
-        <div className="flex w-full flex-row items-center justify-between">
-            <div className="flex flex-col">
-                <h1 className='text-xl'>{data.machineName}</h1>
-                <h2 className='text-lg'>{(new Date(data.date)).toDateString()}</h2>
-            </div>
-            {icon()}
-        </div>
-        <div className="flex flex-row gap-2 w-full items-center">
-            <div className="bg-gray-200 h-0.5 w-full"/>
-                {stateBadge()}
-            <div className="bg-gray-200 h-0.5 w-full"/>
-        </div>
-        <p>{data.remarks}</p>
+    const getDisplayDate = (date: string) => {
+        console.log("Input Date String: "+date);
+        var inputDate = moment.utc(date);
+        console.log("Converted to Moment: "+JSON.stringify(inputDate));
+        const finalString = inputDate.format('DD MMM YYYY HH:mm');
+        console.log("Output String: "+finalString);
+        return finalString;
+    }
 
-        {interactiveWidget()}
-    </div>
-  );
+    return (
+        <div className="flex rounded-2xl border w-full text-slate-800 gap-5 flex-col items-center justify-between p-5">
+            <div className="flex w-full flex-row items-center justify-between">
+                <div className="flex flex-col">
+                    <h1 className='text-xl'>{data.machineName}</h1>
+                    <h2 className='text-lg'>{getDisplayDate(data.date)}</h2>
+                </div>
+                {icon()}
+            </div>
+            <div className="flex flex-row gap-2 w-full items-center">
+                <div className="bg-gray-200 h-0.5 w-full"/>
+                    {stateBadge()}
+                <div className="bg-gray-200 h-0.5 w-full"/>
+            </div>
+            <p>{data.remarks}</p>
+
+            {interactiveWidget()}
+        </div>
+    );
 }

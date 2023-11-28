@@ -209,6 +209,7 @@ export class OpenAIEngine {
                 return [lastMessage ?? {by: "assistant", type: "text", content: "No response"}];
                 break;
             case "failed":
+                return [{by: "assistant", type: "text", content: "Sorry, something went wrong. Please try again."}];
                 break;
             case "requires_action":
                 const actionMessage = await this.statusRequiresAction(run);
