@@ -9,6 +9,8 @@ import { ReportData } from '../model/report-data';
 import { todo } from 'node:test';
 import moment from 'moment';
 
+export const maxDuration = 120;
+
 export async function send(data: {reply: string, toolData?: {runID: string, toolCallID: string}}[]): Promise<{ messages?: Message[], threadID: string, runID: string}  | undefined> {
     if (data.length == 0) return undefined;
 
