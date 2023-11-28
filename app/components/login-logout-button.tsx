@@ -11,7 +11,7 @@ export default function LoginLogoutButton({ login }: { login: boolean }) {
 
     async function loginOrLogout() {
         if (login == true) {
-            return <Link href={{pathname: "/login"}} className="bg-stone-500 text-white py-1 px-4 rounded">Log In</Link>;
+            return <></>//<Link href={{pathname: "/login"}} className="bg-stone-500 text-white py-1 px-4 rounded">Log In</Link>;
         }
 
         return <button onClick={handleSignOut} className="bg-red-400 text-white py-1 px-4 rounded">Sign out</button>

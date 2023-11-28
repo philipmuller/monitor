@@ -26,8 +26,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${inter.className}`}>
         <div className="flex flex-col fixed h-screen overflow-y-auto w-screen bg-white">
           <nav className="flex justify-between items-center p-4 bg-white fixed w-screen">
-            <span className="text-2xl font-semibold text-stone-800 dark:text-stone-200">
-              <Link href={{pathname: "/"}}>Monitor</Link>
+            <span className="text-2xl font-semibold text-sky-200">
+              <Link href={{pathname: "/"}}>Pulseflow</Link>
             </span>
             <div className="flex flex-row gap-10">
               <LoginLogoutButton login={session == null}/>

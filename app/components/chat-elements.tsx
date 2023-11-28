@@ -21,7 +21,7 @@ export function ChatBubble({message, onToolSubmit}: {message: Message, onToolSub
   export function UserBubble({message}: {message: Message}) {
     return (
       <div className="w-full flex flex-row gap-3">
-        <div className="bg-green-200 text-green-800 h-6 w-6 flex-none rounded-full flex justify-center place-items-center">U</div>
+        <div className="bg-teal-200 text-teal-800 h-6 w-6 flex-none rounded-full flex justify-center place-items-center">U</div>
         <Markdown className="flex flex-col gap-1">{message.content}</Markdown>
       </div>
     );
